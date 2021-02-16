@@ -21,6 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/pkg/errors"
+	"github.com/replicatedhq/kots/kotsadm/pkg/k8s"
 	"github.com/replicatedhq/kots/kotsadm/pkg/kurl"
 	"github.com/replicatedhq/kots/kotsadm/pkg/logger"
 	"github.com/replicatedhq/kots/kotsadm/pkg/snapshot/providers"
@@ -383,7 +384,7 @@ func UpdateGlobalStore(store *types.Store) (*velerov1.BackupStorageLocation, err
 }
 
 // GetGlobalStore will return the global store from kotsadmVeleroBackupStorageLocation
-// or will find it, is the param is nil
+// or will find it, if the param is nil
 func GetGlobalStore(kotsadmVeleroBackendStorageLocation *velerov1.BackupStorageLocation) (*types.Store, error) {
 	cfg, err := config.GetConfig()
 	if err != nil {
@@ -396,21 +397,9 @@ func GetGlobalStore(kotsadmVeleroBackendStorageLocation *velerov1.BackupStorageL
 	}
 
 	if kotsadmVeleroBackendStorageLocation == nil {
-		veleroClient, err := veleroclientv1.NewForConfig(cfg)
+		kotsadmVeleroBackendStorageLocation, err = FindBackupStoreLocation()
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to create velero clientset")
-		}
-
-		backupStorageLocations, err := veleroClient.BackupStorageLocations("").List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to list backupstoragelocations")
-		}
-
-		for _, backupStorageLocation := range backupStorageLocations.Items {
-			if backupStorageLocation.Name == "default" {
-				kotsadmVeleroBackendStorageLocation = &backupStorageLocation
-				break
-			}
+			return nil, errors.Wrap(err, "failed to find backupstoragelocations")
 		}
 	}
 
@@ -549,12 +538,25 @@ func FindBackupStoreLocation() (*velerov1.BackupStorageLocation, error) {
 		return nil, errors.Wrap(err, "failed to get cluster config")
 	}
 
+	clientset, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create clientset")
+	}
+
+	bslNamespace := ""
+	if !k8s.IsKotsadmClusterScoped(context.TODO(), clientset) {
+		bslNamespace, err = getMinimalRBACVeleroNamespace(clientset)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get minimal rbac velero namespace")
+		}
+	}
+
 	veleroClient, err := veleroclientv1.NewForConfig(cfg)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create velero clientset")
 	}
 
-	backupStorageLocations, err := veleroClient.BackupStorageLocations("").List(context.TODO(), metav1.ListOptions{})
+	backupStorageLocations, err := veleroClient.BackupStorageLocations(bslNamespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list backupstoragelocations")
 	}

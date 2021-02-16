@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/kots/kotsadm/pkg/logger"
+	"github.com/replicatedhq/kots/kotsadm/pkg/snapshot"
 	"github.com/replicatedhq/kots/kotsadm/pkg/supportbundle"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	veleroclientv1 "github.com/vmware-tanzu/velero/pkg/generated/clientset/versioned/typed/velero/v1"
@@ -31,7 +32,12 @@ func Start() error {
 		return errors.Wrap(err, "failed to create velero clientset")
 	}
 
-	backupWatch, err := veleroClient.Backups("").Watch(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
+	veleroNamespace, err := snapshot.DetectVeleroNamespace()
+	if err != nil {
+		return errors.Wrap(err, "failed to detect velero namespace")
+	}
+
+	backupWatch, err := veleroClient.Backups(veleroNamespace).Watch(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
 	if err != nil {
 		if kuberneteserrors.IsNotFound(err) {
 			return nil

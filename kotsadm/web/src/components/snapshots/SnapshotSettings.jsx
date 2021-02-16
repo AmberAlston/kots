@@ -40,7 +40,18 @@ class SnapshotSettings extends Component {
       }
     })
       .then(res => res.json())
-      .then(result => {
+      .then(async result => {
+        if (!result.ok && result.status === 409) {
+          const res = await result.json();
+          if (res.kotsadmRequiresVeleroAccess) {
+            this.props.toggleSnapshotsRBACModal();
+            this.setState({
+              isLoadingSnapshotSettings: false
+            });
+            return;
+          }
+        }
+
         this.setState({
           snapshotSettings: result,
           isLoadingSnapshotSettings: false,
@@ -100,7 +111,7 @@ class SnapshotSettings extends Component {
         if (!res.ok && res.status === 409) {
           const settingsResponse = await res.json();
           if (settingsResponse.kotsadmRequiresVeleroAccess) {
-            this.props.toggleSnapshotsRBACModal(settingsResponse.veleroNamespace);
+            this.props.toggleSnapshotsRBACModal();
             this.setState({
               updatingSettings: false,
             });

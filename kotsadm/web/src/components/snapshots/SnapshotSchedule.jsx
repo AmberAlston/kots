@@ -213,7 +213,7 @@ class SnapshotSchedule extends Component {
         if (!res.ok && res.status === 409) {
           const response = await res.json();
           if (response.kotsadmRequiresVeleroAccess) {
-            this.props.toggleSnapshotsRBACModal(response.veleroNamespace);
+            this.props.toggleSnapshotsRBACModal();
             this.setState({
               updatingSchedule: false,
             });

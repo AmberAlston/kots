@@ -349,6 +349,11 @@ func (h *Handler) GetGlobalSnapshotSettings(w http.ResponseWriter, r *http.Reque
 		Success: false,
 	}
 
+	// check minimal rbac
+	if err := requiresKotsadmVeleroAccess(w, r); err != nil {
+		return
+	}
+
 	veleroStatus, err := snapshot.DetectVelero()
 	if err != nil {
 		logger.Error(err)
@@ -729,7 +734,7 @@ func (h *Handler) SaveInstanceSnapshotConfig(w http.ResponseWriter, r *http.Requ
 }
 
 func requiresKotsadmVeleroAccess(w http.ResponseWriter, r *http.Request) error {
-	requiresVeleroAccess, veleroNamespace, err := snapshot.CheckKotsadmVeleroAccess()
+	requiresVeleroAccess, err := snapshot.CheckKotsadmVeleroAccess()
 	if err != nil {
 		errMsg := "failed to check if kotsadm requires access to velero"
 		logger.Error(errors.Wrap(err, errMsg))
@@ -743,7 +748,6 @@ func requiresKotsadmVeleroAccess(w http.ResponseWriter, r *http.Request) error {
 			Success:                     false,
 			Error:                       errMsg,
 			KotsadmRequiresVeleroAccess: true,
-			VeleroNamespace:             veleroNamespace,
 		}
 		JSON(w, http.StatusConflict, response)
 		return errors.New(errMsg)

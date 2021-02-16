@@ -357,7 +357,7 @@ class AppSnapshots extends Component {
         if (!result.ok && result.status === 409) {
           const res = await result.json();
           if (res.kotsadmRequiresVeleroAccess) {
-            this.props.toggleSnapshotsRBACModal(res.veleroNamespace);
+            this.props.toggleSnapshotsRBACModal();
             this.setState({
               startingSnapshot: false
             });
